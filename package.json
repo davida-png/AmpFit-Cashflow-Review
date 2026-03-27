@@ -1,0 +1,10 @@
+{
+  "name": "ampfit-cfo-dashboard",
+  "version": "1.0.0",
+  "description": "Amp Fit CFO Runway & Burn Rate Dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve public",
+    "start": "npx serve public"
+  }
+}
