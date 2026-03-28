@@ -595,9 +595,14 @@
       <div class="chart-container"><canvas id="chartBurn"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">תחזית Runway — 12 חודשים קדימה</div>
-      <div class="card-subtitle">תחזית יתרת מזומנים בהתאם לתרחיש</div>
+      <div class="card-title">Net Cash Flow חודשי — תחזית 10 חודשים</div>
+      <div class="card-subtitle">בארים = Forecast Sheet | קו אדום = תרחיש מותאם</div>
       <div class="chart-container"><canvas id="chartRunway"></canvas></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px;">
+        * <strong>מרץ 2026</strong> — תחזית מגיליון Mar 2026 &nbsp;|&nbsp;
+        <strong>אפר–דצמ׳ 2026</strong> — נתונים מגיליון Forecast (gid 1081134114) &nbsp;|&nbsp;
+        קו ירוק מקווקו = Breakeven ($0 Net CF)
+      </div>
     </div>
   </div>
 
@@ -890,49 +895,54 @@ function initCharts() {
     }
   });
 
-  // Runway Projection Chart
+  // Runway / Monthly Burn Forecast Chart (mixed: bars = forecast, line = scenario)
   const ctxRunway = document.getElementById('chartRunway').getContext('2d');
   runwayChart = new Chart(ctxRunway, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: [],
       datasets: [
         {
-          label: 'Cash Balance (Base)',
+          type: 'bar',
+          label: 'Net CF — Forecast Sheet*',
           data: [],
-          borderColor: 'rgba(99,102,241,0.5)',
-          borderDash: [5, 5],
-          borderWidth: 2,
-          fill: false,
-          pointRadius: 0,
-          tension: 0.3,
-        },
-        {
-          label: 'Cash Balance (Scenario)',
-          data: [],
+          backgroundColor: 'rgba(99,102,241,0.45)',
           borderColor: '#6366f1',
-          borderWidth: 3,
-          fill: { target: 'origin', above: 'rgba(99,102,241,0.08)', below: 'rgba(239,68,68,0.08)' },
-          pointRadius: 3,
-          pointBackgroundColor: '#6366f1',
-          tension: 0.3,
+          borderWidth: 1,
+          borderRadius: 5,
+          order: 2,
         },
         {
-          label: 'Danger Zone',
+          type: 'line',
+          label: 'Net CF — Scenario',
           data: [],
-          borderColor: 'rgba(239,68,68,0.4)',
-          borderDash: [3, 3],
-          borderWidth: 1,
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239,68,68,0.08)',
+          borderWidth: 2.5,
+          fill: false,
+          pointRadius: 4,
+          pointBackgroundColor: '#ef4444',
+          tension: 0.3,
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Breakeven ($0)',
+          data: [],
+          borderColor: 'rgba(34,197,94,0.55)',
+          borderDash: [6, 4],
+          borderWidth: 1.5,
           fill: false,
           pointRadius: 0,
+          order: 3,
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } },
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } }
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 14, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y >= 0 ? '+' : '') + '$' + Math.round(ctx.parsed.y / 1000) + 'K' } }
       },
       scales: {
         y: { ticks: { callback: v => '$' + (v/1000000).toFixed(1) + 'M' } }
@@ -1009,31 +1019,27 @@ function calcZeroCashDate(startCash, monthlyCFs) {
 }
 
 function updateRunwayChart(sc) {
-  const labels = ['Mar 2026', ...FORECAST.labels.map(m => m + ' 2026')];
+  // Monthly net cash flow: Mar (actual scenario) + Apr–Dec (Forecast sheet)
+  const labels = ['מרץ 2026', ...FORECAST.labels.map(m => m + '\'26')];
 
-  // Scenario delta vs base (applied proportionally to forecast months)
+  // Scenario delta applied uniformly to all future months
   const delta = sc.netCashFlow - baseAvg.netCashFlow;
 
-  const baseData     = [BASE.openBalance[2]]; // base = no funding change
-  const scenarioData = [sc.currentCash];
-  const dangerData   = labels.map(() => 0);
-
-  for (let i = 0; i < FORECAST.labels.length; i++) {
-    const baseCF     = FORECAST.netCF[i];
-    const scenarioCF = FORECAST.netCF[i] + delta;
-    baseData.push(Math.max(baseData[baseData.length - 1] + baseCF, -8000000));
-    scenarioData.push(Math.max(scenarioData[scenarioData.length - 1] + scenarioCF, -8000000));
-  }
+  // Bars = Forecast sheet monthly CFs (base, no scenario adjustment)
+  const forecastCFs  = [baseAvg.netCashFlow, ...FORECAST.netCF];
+  // Line = scenario-adjusted monthly CFs
+  const scenarioCFs  = forecastCFs.map(cf => cf + delta);
+  const breakeven    = labels.map(() => 0);
 
   runwayChart.data.labels = labels;
-  runwayChart.data.datasets[0].data = baseData;
-  runwayChart.data.datasets[1].data = scenarioData;
-  runwayChart.data.datasets[2].data = dangerData;
+  runwayChart.data.datasets[0].data = forecastCFs;
+  runwayChart.data.datasets[1].data = scenarioCFs;
+  runwayChart.data.datasets[2].data = breakeven;
   runwayChart.update('none');
 
-  // Update zero cash date KPI
-  const forecastCFs = FORECAST.netCF.map(cf => cf + delta);
-  const zeroDate = calcZeroCashDate(sc.currentCash, forecastCFs);
+  // Zero cash date: cumulative from current cash
+  const futureCFs = FORECAST.netCF.map(cf => cf + delta);
+  const zeroDate = calcZeroCashDate(sc.currentCash, futureCFs);
   const el = document.getElementById('kpiZeroCash');
   if (el) {
     if (zeroDate) {
@@ -1284,26 +1290,41 @@ function updateIncomeBreakdown(sc) {
   const appPct      = (scaledApp / sc.income * 100).toFixed(1);
   const machinesPct = (scaledMachines / sc.income * 100).toFixed(1);
 
+  const APP_PRICE     = 23;    // monthly subscription per user
+  const MACHINE_PRICE = 1995;  // price per machine
+  const appUsers    = Math.round(scaledApp / APP_PRICE);
+  const machineSold = Math.round(scaledMachines / MACHINE_PRICE);
+
   container.innerHTML = `
-    <div style="margin-bottom:12px;">
+    <div style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
         <span>📱 App Subscriptions</span>
-        <span style="color:var(--green);font-weight:600;">$${(scaledApp/1000).toFixed(0)}K (${appPct}%)</span>
+        <span style="color:var(--accent-light);font-weight:600;">$${(scaledApp/1000).toFixed(0)}K (${appPct}%)</span>
       </div>
-      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:5px;">
         <div style="width:${appPct}%;height:100%;background:var(--accent);border-radius:5px;"></div>
       </div>
+      <div style="font-size:12px;color:var(--text-muted);">
+        ~<strong style="color:var(--text)">${appUsers.toLocaleString()}</strong> משתמשים פעילים
+        <span style="opacity:0.6;">($${APP_PRICE}/חודש)</span>
+      </div>
     </div>
-    <div style="margin-bottom:12px;">
+    <div style="margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
         <span>🏋️ Machine Sales</span>
         <span style="color:var(--blue);font-weight:600;">$${(scaledMachines/1000).toFixed(0)}K (${machinesPct}%)</span>
       </div>
-      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:5px;">
         <div style="width:${machinesPct}%;height:100%;background:var(--blue);border-radius:5px;"></div>
       </div>
+      <div style="font-size:12px;color:var(--text-muted);">
+        ~<strong style="color:var(--text)">${machineSold.toLocaleString()}</strong> מכשירים נמכרו
+        <span style="opacity:0.6;">($${MACHINE_PRICE.toLocaleString()} למכשיר)</span>
+      </div>
     </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">* פירוט זמין למרץ 2026 בלבד</div>`;
+    <div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+      * פירוט ערוצי הכנסה זמין למרץ 2026 בלבד | ינואר–פברואר: אגרגטיבי בלבד
+    </div>`;
 
   // Init income forecast chart once
   if (!incomeForecastChart) {
