@@ -477,6 +477,8 @@
   <div class="header-right">
     <span class="exchange-badge">USD/ILS: <strong id="fxDisplay">3.11</strong></span>
     <span class="exchange-badge">Data: Jan–Mar 2026</span>
+    <span class="exchange-badge" id="liveIndicator" title="סטטוס חיבור ל-Google Sheets" style="cursor:default">⟳ טוען...</span>
+    <button class="exchange-badge" onclick="loadLiveData()" style="cursor:pointer;border:none;background:var(--card);color:var(--text-muted);font-size:12px;" title="רענן נתונים מ-Google Sheets">↻ רענן</button>
   </div>
 </div>
 
@@ -649,51 +651,53 @@
 </div>
 
 <script>
-// ==================== BASE DATA (from actual Excel files) ====================
+// ==================== BASE DATA (Actuals from Google Sheets) ====================
+// Jan 2026: Actual | Feb 2026: Actual | Mar 2026: Forecast (sheet as of Mar 12)
 const BASE = {
   months: ['Jan 2026', 'Feb 2026', 'Mar 2026'],
   fx: [3.202, 3.12, 3.11],
 
-  income:     [1000000,  950000,   880000],
-  marketing:  [1015000,  710000,   580000],
-  inventory:  [2575613,  1836876,  1707986],
-  mp2Rework:  [85000,    20000,    20000],
-  directCost: [920501,   734350,   709940],
-  hc:         [2123543,  2338812,  1930000],
-  opex:       [692052,   696052,   722093],
+  income:     [1022000,  1030566,  880000],
+  marketing:  [779192,   530365,   580000],
+  inventory:  [1899039,  612485,   1707986],
+  mp2Rework:  [84226,    20000,    20000],
+  directCost: [633717,   847296,   709940],
+  hc:         [2596979,  2387010,  1930000],
+  opex:       [729390,   652389,   722093],
 
   // Sub-breakdowns
-  payrollIL:  [452344,   1113812,  950000],
-  payrollUS:  [502000,   650000,   380000],
-  outsource:  [1169199,  575000,   600000],
+  payrollIL:  [1218516,  962338,   950000],
+  payrollUS:  [738734,   956292,   380000],
+  outsource:  [639730,   468380,   600000],
 
   // Inventory sub
-  customsDuties: [585000, 300000, 250000],  // Estimated from Schenkar/DSV
+  customsDuties: [0, 66488, 250000],  // Jan: no duties paid; Feb: clearing fees; Mar: est.
 
   openBalance: [561716, 780024, 1678578],
-  netCashFlow: [-6411709, -5386090, -4790019],
+  netCashFlow: [-5700544, -3998979, -4790019],
   funding:     [-6549994, -5156066, -3861441],
 
-  // OpEx breakdown (Mar)
+  // OpEx breakdown (Feb actuals — most recent confirmed)
   opexBreakdown: {
-    'Rent IL': 80000,
-    'Rent US': 41000,
-    'Recruitment': 121093,
-    'Office Expenses': 80000,
-    'NRE (not SCM)': 100000,
-    'SAAS': 85000,
-    'Travel': 50000,
-    'Professional Services': 100000,
-    'Other OpEx': 65000,
+    'Rent IL': 80988,
+    'Rent US': 40709,
+    'Recruitment': 25309,
+    'Office Expenses': 123393,
+    'NRE (not SCM)': 13255,
+    'SAAS': 173709,
+    'Travel': 45695,
+    'Professional Services': 298993,
+    'VAT Refund': -185665,
+    'Other OpEx': 36004,
   },
 
-  // Direct cost breakdown (Mar)
+  // Direct cost breakdown (Feb actuals)
   directBreakdown: {
-    'Machine Shipping & Install': 535000,
-    'App Direct Cost': 80000,
-    'Store Direct Cost': 19500,
-    'Clearing Fees (6.3%)': 55440,
-    'Hosting & SAAS': 20000,
+    'Machine Shipping & Install': 716803,
+    'App Direct Cost': 49097,
+    'Store Direct Cost': 0,
+    'Clearing Fees (6.3%)': 66488,
+    'Hosting & SAAS': 14908,
   }
 };
 
@@ -710,6 +714,19 @@ const baseAvg = {
   hc: avg(BASE.hc),
   opex: avg(BASE.opex),
 };
+
+function recalcBaseAvg() {
+  baseAvg.income    = avg(BASE.income);
+  baseAvg.marketing = avg(BASE.marketing);
+  baseAvg.inventory = avg(BASE.inventory);
+  baseAvg.mp2Rework = avg(BASE.mp2Rework);
+  baseAvg.directCost = avg(BASE.directCost);
+  baseAvg.hc        = avg(BASE.hc);
+  baseAvg.opex      = avg(BASE.opex);
+  baseAvg.totalExpenses = baseAvg.marketing + baseAvg.inventory + baseAvg.mp2Rework +
+                           baseAvg.directCost + baseAvg.hc + baseAvg.opex;
+  baseAvg.netCashFlow = baseAvg.income - baseAvg.totalExpenses;
+}
 
 baseAvg.totalExpenses = baseAvg.marketing + baseAvg.inventory + baseAvg.mp2Rework +
                          baseAvg.directCost + baseAvg.hc + baseAvg.opex;
@@ -1156,11 +1173,178 @@ function formatUSD(value) {
   return sign + '$' + abs.toFixed(0);
 }
 
+// ==================== GOOGLE SHEETS LIVE CONNECTION ====================
+const SPREADSHEET_ID = '1jYXe3Z6Upza5mA-lO4M2L1C8rBKb6I4bInlqI105j64';
+const SHEET_GIDS = [0, 649677684, 1089795193]; // Jan 2026, Feb 2026, Mar 2026
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  for (let i = 0; i <= text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuote = false; }
+      else { field += (ch === undefined ? '' : ch); }
+    } else {
+      if (ch === '"') { inQuote = true; }
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === undefined) {
+        row.push(field); field = '';
+        if (row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else if (ch !== '\r') { field += ch; }
+    }
+  }
+  return rows;
+}
+
+function parseDollar(str) {
+  if (!str) return null;
+  let s = str.trim().replace(/\$/g, '').replace(/,/g, '').replace(/\s/g, '');
+  if (!s || s === '-') return null;
+  if (s.startsWith('(') && s.endsWith(')')) return -parseFloat(s.slice(1, -1));
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function parseSheetData(csvText) {
+  const rows = parseCSV(csvText);
+  const result = {
+    openBalance: null, fx: null, income: null, marketing: null,
+    inventory: null, mp2Rework: null, directCost: null, hc: null, opex: null,
+    netCashFlow: null, payrollIL: null, payrollUS: null, outsource: null
+  };
+
+  // FX rate: look in first few rows for a value like 3.202 in col index 5
+  for (const r of rows.slice(0, 5)) {
+    const fxCandidate = parseFloat(r[5]);
+    if (fxCandidate > 2.5 && fxCandidate < 5) { result.fx = fxCandidate; break; }
+  }
+
+  // Bank balance total: pattern ,,,,VALUE,, in first ~20 rows
+  for (const r of rows.slice(0, 20)) {
+    if (!r[0] && !r[1] && !r[2] && !r[3] && r[4]) {
+      const v = parseDollar(r[4]);
+      if (v !== null && v > 100000 && v < 50000000) { result.openBalance = v; break; }
+    }
+  }
+
+  // Find Forecast vs Actual section header row
+  let fvaIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === 'Item' && rows[i].some(c => c && c.includes('Actual'))) {
+      fvaIdx = i; break;
+    }
+  }
+
+  // Col indices: in F vs A table actual=4; in Nov summary table actual=1
+  const actualCol  = fvaIdx >= 0 ? 4 : 1;
+  const forecastCol = fvaIdx >= 0 ? 2 : 1;
+  const startIdx   = fvaIdx >= 0 ? fvaIdx + 1 : 0;
+
+  let section = null;
+  const sectionDone = {};
+
+  for (const r of rows.slice(startIdx)) {
+    const a = (r[0] || '').trim();
+    const b = (r[1] || '').trim();
+    const actual   = parseDollar(r[actualCol]);
+    const forecast = parseDollar(r[forecastCol]);
+    const val = actual !== null ? actual : forecast;
+
+    if (a === 'Income' && val !== null) result.income = Math.abs(val);
+
+    if (a === 'Marketing' && val !== null && result.marketing === null) {
+      result.marketing = Math.abs(val);
+    }
+
+    if (a === 'Inventory')  section = 'inventory';
+    if (a === 'MP2 Rework') section = 'mp2rework';
+    if (a === 'Direct Cost') section = 'directCost';
+    if (a === 'HC')  section = 'hc';
+    if (a === 'OpEx') section = 'opex';
+
+    if (b === 'Payroll IL'  && val !== null) result.payrollIL  = Math.abs(val);
+    if (b === 'Payroll US'  && val !== null) result.payrollUS  = Math.abs(val);
+    if (b === 'Outsource'   && val !== null) result.outsource  = Math.abs(val);
+
+    if (b.toLowerCase().includes('net cash flow') && val !== null) result.netCashFlow = val;
+
+    // Subtotal row: both col A and B empty, col C has value
+    if (a === '' && b === '' && forecast !== null && section && !sectionDone[section]) {
+      const sval = actual !== null ? actual : forecast;
+      switch (section) {
+        case 'inventory':  result.inventory  = Math.abs(sval); sectionDone[section] = true; break;
+        case 'mp2rework':  result.mp2Rework  = Math.abs(sval); sectionDone[section] = true; break;
+        case 'directCost': result.directCost = Math.abs(sval); sectionDone[section] = true; break;
+        case 'hc':         result.hc         = Math.abs(sval); sectionDone[section] = true; break;
+        case 'opex':       result.opex       = Math.abs(sval); sectionDone[section] = true; break;
+      }
+    }
+  }
+
+  return result;
+}
+
+async function loadLiveData() {
+  const indicator = document.getElementById('liveIndicator');
+  if (indicator) { indicator.textContent = '⟳ טוען...'; indicator.style.color = 'var(--yellow)'; }
+
+  try {
+    const texts = await Promise.all(
+      SHEET_GIDS.map(gid =>
+        fetch(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`)
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      )
+    );
+
+    const months = texts.map(parseSheetData);
+    const [jan, feb, mar] = months;
+
+    const fields = ['income', 'marketing', 'inventory', 'mp2Rework', 'directCost', 'hc', 'opex'];
+    fields.forEach(key => {
+      months.forEach((m, i) => { if (m[key] !== null) BASE[key][i] = m[key]; });
+    });
+
+    months.forEach((m, i) => {
+      if (m.netCashFlow  !== null) BASE.netCashFlow[i]  = m.netCashFlow;
+      if (m.openBalance  !== null) BASE.openBalance[i]  = m.openBalance;
+      if (m.fx           !== null) BASE.fx[i]           = m.fx;
+      if (m.payrollIL    !== null) BASE.payrollIL[i]    = m.payrollIL;
+      if (m.payrollUS    !== null) BASE.payrollUS[i]    = m.payrollUS;
+      if (m.outsource    !== null) BASE.outsource[i]    = m.outsource;
+    });
+
+    recalcBaseAvg();
+
+    const now = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    if (indicator) {
+      indicator.textContent = '● Live';
+      indicator.style.color = 'var(--green)';
+      indicator.title = 'עודכן בשעה ' + now + ' מ-Google Sheets';
+    }
+    document.getElementById('fxDisplay').textContent = BASE.fx[2].toFixed(2);
+
+  } catch (err) {
+    console.warn('Google Sheets fetch failed — using static data:', err);
+    if (indicator) {
+      indicator.textContent = '○ Static';
+      indicator.style.color = 'var(--text-muted)';
+      indicator.title = 'לא ניתן לטעון מ-Google Sheets: ' + err.message;
+    }
+  }
+
+  updateScenario();
+  updateMonthlyTable();
+}
+
 // ==================== INIT ====================
 window.addEventListener('DOMContentLoaded', () => {
   initCharts();
   updateScenario();
   updateMonthlyTable();
+  loadLiveData(); // fetch live data from Google Sheets in background
 });
 </script>
 </body>
