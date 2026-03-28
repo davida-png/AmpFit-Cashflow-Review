@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,8 +36,37 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    direction: rtl;
   }
+
+  /* Light mode */
+  body.light {
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --card-hover: #f8fafc;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --accent: #4f46e5;
+    --accent-light: #6366f1;
+  }
+  body.light .header {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+    border-bottom-color: var(--border);
+  }
+  body.light .compare-table tr:hover td { background: rgba(0,0,0,0.02); }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
   .header {
     background: linear-gradient(135deg, #111827 0%, #1e1b4b 100%);
@@ -272,7 +301,7 @@
   }
 
   .compare-table th {
-    text-align: right;
+    text-align: left;
     padding: 10px 12px;
     font-weight: 600;
     color: var(--text-muted);
@@ -410,7 +439,6 @@
     color: var(--text);
     font-size: 14px;
     outline: none;
-    direction: rtl;
   }
 
   .scenario-question input::placeholder { color: var(--text-muted); }
@@ -503,9 +531,10 @@
   <div class="header-right">
     <span class="exchange-badge">USD/ILS: <strong id="fxDisplay">3.11</strong></span>
     <span class="exchange-badge">Data: Jan–Mar 2026</span>
-    <span class="exchange-badge" id="liveIndicator" title="סטטוס חיבור ל-Google Sheets" style="cursor:default">⟳ טוען...</span>
-    <button class="exchange-badge" onclick="loadLiveData()" style="cursor:pointer;border:none;background:var(--card);color:var(--text-muted);font-size:12px;" title="רענן נתונים מ-Google Sheets">↻ רענן</button>
-    <button id="shareBtn" class="exchange-badge" onclick="shareScenario()" style="cursor:pointer;border:1px solid var(--accent);background:transparent;color:var(--accent-light);font-size:12px;font-weight:600;">↗ שתף תרחיש</button>
+    <span class="exchange-badge" id="liveIndicator" title="Google Sheets connection status" style="cursor:default">⟳ Loading...</span>
+    <button class="exchange-badge" onclick="loadLiveData()" style="cursor:pointer;border:none;background:var(--card);color:var(--text-muted);font-size:12px;" title="Refresh data from Google Sheets">↻ Refresh</button>
+    <button id="shareBtn" class="exchange-badge" onclick="shareScenario()" style="cursor:pointer;border:1px solid var(--accent);background:transparent;color:var(--accent-light);font-size:12px;font-weight:600;">↗ Share Scenario</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" title="Toggle light/dark mode">☀</button>
   </div>
 </div>
 
@@ -516,32 +545,66 @@
     <div class="kpi-card">
       <div class="kpi-label">Cash Balance</div>
       <div class="kpi-value" id="kpiCash">$1,678,578</div>
-      <div class="kpi-sub" id="kpiCashSub">יתרת מזומנים נוכחית (מרץ 2026)</div>
+      <div class="kpi-sub" id="kpiCashSub">Current cash balance (Mar 2026)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Monthly Burn Rate</div>
       <div class="kpi-value kpi-down" id="kpiBurn">$5,529,273</div>
-      <div class="kpi-sub" id="kpiBurnSub">שריפת מזומנים חודשית (מרץ 2026)</div>
+      <div class="kpi-sub" id="kpiBurnSub">Monthly cash burn (Mar 2026)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Runway</div>
-      <div class="kpi-value kpi-warn" id="kpiRunway">0.3 חודשים</div>
-      <div class="kpi-sub" id="kpiRunwaySub">לפי Burn Rate נוכחי</div>
+      <div class="kpi-value kpi-warn" id="kpiRunway">0.3 months</div>
+      <div class="kpi-sub" id="kpiRunwaySub">Based on current Burn Rate</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Net Cash Flow</div>
       <div class="kpi-value kpi-down" id="kpiNet">-$5,529,273</div>
-      <div class="kpi-sub" id="kpiNetSub">תזרים נטו (מרץ 2026)</div>
+      <div class="kpi-sub" id="kpiNetSub">Monthly net cash flow (Mar 2026)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Funding Required</div>
       <div class="kpi-value" style="color: var(--purple)" id="kpiFunding">$5,172,500</div>
-      <div class="kpi-sub">מימון חודשי נדרש (מרץ 2026)</div>
+      <div class="kpi-sub">Monthly funding required (Mar 2026)</div>
     </div>
     <div class="kpi-card" style="border-color: var(--red);">
       <div class="kpi-label">Zero Cash Date</div>
       <div class="kpi-value kpi-down" id="kpiZeroCash">—</div>
-      <div class="kpi-sub">מועד גמר המזומנים לפי תחזית</div>
+      <div class="kpi-sub">Projected date of cash depletion</div>
+    </div>
+  </div>
+
+  <!-- Unit Economics (Cohort KPIs) -->
+  <div class="cohort-econ-grid" style="margin-bottom:24px;">
+    <div class="cohort-econ-card">
+      <div class="econ-label">CAC (Mar 2026)</div>
+      <div class="econ-value">$798</div>
+      <div class="econ-sub">Marketing $580K ÷ 727 units</div>
+    </div>
+    <div class="cohort-econ-card">
+      <div class="econ-label">Machine LTV</div>
+      <div class="econ-value">$2,271</div>
+      <div class="econ-sub">$1,995 + 12×$23 App</div>
+    </div>
+    <div class="cohort-econ-card econ-highlight">
+      <div class="econ-label">LTV : CAC</div>
+      <div class="econ-value econ-green">2.85x</div>
+      <div class="econ-sub">Payback Day 1 — $1,995 > $798</div>
+    </div>
+    <div class="cohort-econ-card">
+      <div class="econ-label">Active Subscribers (Mar)</div>
+      <div class="econ-value" id="cohortActiveNow">3,995</div>
+      <div class="econ-sub">7 Cohorts Sep'25–Mar'26</div>
+    </div>
+    <div class="cohort-econ-card">
+      <div class="econ-label">App Revenue (Mar)</div>
+      <div class="econ-value">$91,885</div>
+      <div class="econ-sub">3,995 × $23/month</div>
+    </div>
+    <div class="cohort-econ-card">
+      <div class="econ-label">Peak Subscribers</div>
+      <div class="econ-value econ-blue" id="cohortPeakVal">—</div>
+      <div class="econ-sub" id="cohortPeakMonth">Loading...</div>
     </div>
   </div>
 
@@ -549,65 +612,65 @@
   <div class="scenario-panel">
     <div class="card-title">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-      Scenario Planning — מנוע תרחישים
+      Scenario Planning
     </div>
-    <div class="card-subtitle">שנה את הפרמטרים וכל הדשבורד יתעדכן בזמן אמת</div>
+    <div class="card-subtitle">Adjust parameters to update the entire dashboard in real-time</div>
 
     <div class="quick-questions">
-      <button class="qq-btn" onclick="applyPreset('hire5ny')">+5 עובדים ב-NY</button>
-      <button class="qq-btn" onclick="applyPreset('tariff5')">מכס +5%</button>
-      <button class="qq-btn" onclick="applyPreset('sales10')">מכירות +10%</button>
-      <button class="qq-btn" onclick="applyPreset('sales20')">מכירות +20%</button>
-      <button class="qq-btn" onclick="applyPreset('cutMarketing30')">קיצוץ שיווק 30%</button>
-      <button class="qq-btn" onclick="applyPreset('raise2m')">גיוס $2M</button>
-      <button class="qq-btn" onclick="applyPreset('raise5m')">גיוס $5M</button>
+      <button class="qq-btn" onclick="applyPreset('hire5ny')">+5 NY Hires</button>
+      <button class="qq-btn" onclick="applyPreset('tariff5')">Tariffs +5%</button>
+      <button class="qq-btn" onclick="applyPreset('sales10')">Sales +10%</button>
+      <button class="qq-btn" onclick="applyPreset('sales20')">Sales +20%</button>
+      <button class="qq-btn" onclick="applyPreset('cutMarketing30')">Cut Marketing 30%</button>
+      <button class="qq-btn" onclick="applyPreset('raise2m')">Raise $2M</button>
+      <button class="qq-btn" onclick="applyPreset('raise5m')">Raise $5M</button>
       <button class="qq-btn" onclick="applyPreset('worstCase')">Worst Case</button>
       <button class="qq-btn" onclick="applyPreset('bestCase')">Best Case</button>
     </div>
 
     <div class="scenario-grid">
       <div class="scenario-item">
-        <label>עובדים חדשים (NY) <span class="val" id="valHireNY">0</span></label>
+        <label>New Hires (NY) <span class="val" id="valHireNY">0</span></label>
         <input type="range" id="sliderHireNY" min="0" max="20" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>עובדים חדשים (IL) <span class="val" id="valHireIL">0</span></label>
+        <label>New Hires (IL) <span class="val" id="valHireIL">0</span></label>
         <input type="range" id="sliderHireIL" min="0" max="20" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>עלות ממוצעת לעובד NY ($) <span class="val" id="valCostNY">$12K</span></label>
+        <label>Avg. cost per NY hire ($) <span class="val" id="valCostNY">$12K</span></label>
         <input type="range" id="sliderCostNY" min="5000" max="25000" step="1000" value="12000" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>עלות ממוצעת לעובד IL (₪) <span class="val" id="valCostIL">₪25K</span></label>
+        <label>Avg. cost per IL hire (₪) <span class="val" id="valCostIL">₪25K</span></label>
         <input type="range" id="sliderCostIL" min="10000" max="50000" step="1000" value="25000" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>שינוי במכירות <span class="val" id="valSales">0%</span></label>
+        <label>Sales Change <span class="val" id="valSales">0%</span></label>
         <input type="range" id="sliderSales" min="-50" max="100" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>שינוי במכס (Tariffs) <span class="val" id="valTariff">0%</span></label>
+        <label>Tariff Impact <span class="val" id="valTariff">0%</span></label>
         <input type="range" id="sliderTariff" min="-20" max="50" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>שינוי בשיווק <span class="val" id="valMarketing">0%</span></label>
+        <label>Marketing Change <span class="val" id="valMarketing">0%</span></label>
         <input type="range" id="sliderMarketing" min="-80" max="100" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>שינוי ב-OpEx <span class="val" id="valOpex">0%</span></label>
+        <label>OpEx Change <span class="val" id="valOpex">0%</span></label>
         <input type="range" id="sliderOpex" min="-50" max="50" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>גיוס הון ($) <span class="val" id="valFunding">$0</span></label>
+        <label>Capital Raise ($) <span class="val" id="valFunding">$0</span></label>
         <input type="range" id="sliderFunding" min="0" max="20000000" step="500000" value="0" oninput="updateScenario()">
       </div>
       <div class="scenario-item">
-        <label>שער USD/ILS <span class="val" id="valFx">3.11</span></label>
+        <label>USD/ILS Rate <span class="val" id="valFx">3.11</span></label>
         <input type="range" id="sliderFx" min="280" max="400" value="311" oninput="updateScenario()">
       </div>
     </div>
-    <button class="reset-btn" onclick="resetScenario()">↻ איפוס תרחיש</button>
+    <button class="reset-btn" onclick="resetScenario()">↻ Reset Scenario</button>
   </div>
 
   <!-- Scenario Result Box -->
@@ -616,18 +679,18 @@
   <!-- Charts Row 1 -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">Burn Rate — הכנסות מול הוצאות</div>
-      <div class="card-subtitle">השוואה חודשית: ינואר–מרץ 2026</div>
+      <div class="card-title">Burn Rate — Income vs. Expenses</div>
+      <div class="card-subtitle">Monthly comparison: Jan–Mar 2026</div>
       <div class="chart-container"><canvas id="chartBurn"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">Net Cash Flow חודשי — תחזית 10 חודשים</div>
-      <div class="card-subtitle">בארים = Forecast Sheet | קו אדום = תרחיש מותאם</div>
+      <div class="card-title">Monthly Net Cash Flow — 10-Month Forecast</div>
+      <div class="card-subtitle">Bars = Forecast Sheet | Red line = Scenario-adjusted</div>
       <div class="chart-container"><canvas id="chartRunway"></canvas></div>
       <div style="margin-top:10px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px;">
-        * <strong>מרץ 2026</strong> — תחזית מגיליון Mar 2026 &nbsp;|&nbsp;
-        <strong>אפר–דצמ׳ 2026</strong> — נתונים מגיליון Forecast (gid 1081134114) &nbsp;|&nbsp;
-        קו ירוק מקווקו = Breakeven ($0 Net CF)
+        * <strong>Mar 2026</strong> — Mar 2026 forecast sheet &nbsp;|&nbsp;
+        <strong>Apr–Dec 2026</strong> — Forecast sheet data (gid 1081134114) &nbsp;|&nbsp;
+        Green dashed line = Breakeven ($0 Net CF)
       </div>
     </div>
   </div>
@@ -635,13 +698,13 @@
   <!-- Charts Row 2 -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">Waterfall — לאן הולך הכסף (מרץ 2026)</div>
-      <div class="card-subtitle">פירוט הוצאות לפי קטגוריה</div>
+      <div class="card-title">Waterfall — Where the money goes (Mar 2026)</div>
+      <div class="card-subtitle">Expense breakdown by category</div>
       <div id="waterfallContainer"></div>
     </div>
     <div class="card">
-      <div class="card-title">מגמת Burn Rate חודשית</div>
-      <div class="card-subtitle">Net Cash Flow לפי חודש</div>
+      <div class="card-title">Monthly Burn Rate Trend</div>
+      <div class="card-subtitle">Net Cash Flow by month</div>
       <div class="chart-container"><canvas id="chartTrend"></canvas></div>
     </div>
   </div>
@@ -649,58 +712,25 @@
   <!-- OpEx + Income Breakdown -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">פירוט OpEx — מרץ 2026</div>
-      <div class="card-subtitle">הוצאות תפעול לפי קטגוריה (תחזית)</div>
+      <div class="card-title">OpEx Breakdown — Mar 2026</div>
+      <div class="card-subtitle">Operating expenses by category (forecast)</div>
       <div id="opexBreakdownContainer"></div>
     </div>
     <div class="card">
-      <div class="card-title">פירוט הכנסות — מרץ 2026</div>
-      <div class="card-subtitle">הכנסות לפי ערוץ (App vs Machines)</div>
+      <div class="card-title">Revenue Breakdown — Mar 2026</div>
+      <div class="card-subtitle">Revenue by channel (App vs Machines)</div>
       <div id="incomeBreakdownContainer"></div>
       <div style="margin-top:20px;">
-        <div class="card-title" style="font-size:13px; margin-bottom:10px;">תחזית הכנסות 9 חודשים קדימה</div>
+        <div class="card-title" style="font-size:13px; margin-bottom:10px;">9-Month Revenue Forecast</div>
         <div class="chart-container" style="height:180px;"><canvas id="chartIncomeForecst"></canvas></div>
       </div>
     </div>
   </div>
 
-  <!-- Cohort Analytics -->
+  <!-- Cohort Analytics Charts -->
   <div class="card" style="margin-bottom: 24px;">
-    <div class="card-title">Cohort Analytics — מנויי App</div>
-    <div class="card-subtitle">כל רוכש מכונה מחויב לאפליקציה | $23/חודש × 12 חודשים | נתוני BI: ספטמבר 2025 – מרץ 2026</div>
-
-    <div class="cohort-econ-grid">
-      <div class="cohort-econ-card">
-        <div class="econ-label">CAC (מרץ 2026)</div>
-        <div class="econ-value">$798</div>
-        <div class="econ-sub">Marketing $580K ÷ 727 units</div>
-      </div>
-      <div class="cohort-econ-card">
-        <div class="econ-label">Machine LTV</div>
-        <div class="econ-value">$2,271</div>
-        <div class="econ-sub">$1,995 + 12×$23 App</div>
-      </div>
-      <div class="cohort-econ-card econ-highlight">
-        <div class="econ-label">LTV : CAC</div>
-        <div class="econ-value econ-green">2.85x</div>
-        <div class="econ-sub">Payback Day 1 — $1,995 > $798</div>
-      </div>
-      <div class="cohort-econ-card">
-        <div class="econ-label">מנויים פעילים (מרץ)</div>
-        <div class="econ-value" id="cohortActiveNow">3,995</div>
-        <div class="econ-sub">7 Cohorts Sep'25–Mar'26</div>
-      </div>
-      <div class="cohort-econ-card">
-        <div class="econ-label">App Revenue (מרץ)</div>
-        <div class="econ-value">$91,885</div>
-        <div class="econ-sub">3,995 × $23/month</div>
-      </div>
-      <div class="cohort-econ-card">
-        <div class="econ-label">Peak Subscribers</div>
-        <div class="econ-value econ-blue" id="cohortPeakVal">—</div>
-        <div class="econ-sub" id="cohortPeakMonth">טוען...</div>
-      </div>
-    </div>
+    <div class="card-title">Cohort Analytics — App Subscribers</div>
+    <div class="card-subtitle">Every machine buyer is subscribed to the App | $23/month × 12 months | BI Data: Sep 2025 – Mar 2026</div>
 
     <div class="cohort-charts-row">
       <div>
@@ -720,16 +750,16 @@
 
   <!-- Comparison Table -->
   <div class="card" style="margin-bottom: 24px;">
-    <div class="card-title">השוואת תרחישים — Base Case vs. Scenario</div>
-    <div class="card-subtitle">כל הסכומים ב-USD | Base = מרץ 2026 תחזית</div>
+    <div class="card-title">Scenario Comparison — Base Case vs. Scenario</div>
+    <div class="card-subtitle">All amounts in USD | Base = Mar 2026 forecast</div>
     <table class="compare-table" id="compareTable">
       <thead>
         <tr>
-          <th>קטגוריה</th>
-          <th>Base Case (מרץ 2026)</th>
+          <th>Category</th>
+          <th>Base Case (Mar 2026)</th>
           <th>Scenario</th>
-          <th>הפרש</th>
-          <th>שינוי %</th>
+          <th>Difference</th>
+          <th>Change %</th>
         </tr>
       </thead>
       <tbody id="compareBody"></tbody>
@@ -738,16 +768,16 @@
 
   <!-- Monthly Detail -->
   <div class="card" style="margin-bottom: 24px;">
-    <div class="card-title">פירוט חודשי — Forecast vs Actual</div>
-    <div class="card-subtitle">סיכום 3 החודשים האחרונים</div>
+    <div class="card-title">Monthly Detail — Forecast vs Actual</div>
+    <div class="card-subtitle">Q1 2026 summary — Jan, Feb, Mar</div>
     <table class="compare-table">
       <thead>
         <tr>
-          <th>קטגוריה</th>
-          <th>ינואר 2026</th>
-          <th>פברואר 2026</th>
-          <th>מרץ 2026</th>
-          <th>ממוצע</th>
+          <th>Category</th>
+          <th>January 2026</th>
+          <th>February 2026</th>
+          <th>March 2026</th>
+          <th>Average</th>
         </tr>
       </thead>
       <tbody id="monthlyBody"></tbody>
@@ -969,7 +999,7 @@ function updateScenario() {
   document.getElementById('kpiCash').textContent = formatUSD(sc.currentCash);
   document.getElementById('kpiBurn').textContent = formatUSD(sc.totalExpenses);
 
-  const runwayText = sc.runway >= 999 ? '∞ (רווחי)' : sc.runway.toFixed(1) + ' חודשים';
+  const runwayText = sc.runway >= 999 ? '∞ (Profitable)' : sc.runway.toFixed(1) + ' months';
   document.getElementById('kpiRunway').textContent = runwayText;
   document.getElementById('kpiRunway').className = 'kpi-value ' + (sc.runway < 3 ? 'kpi-down' : sc.runway < 6 ? 'kpi-warn' : 'kpi-up');
 
@@ -1269,7 +1299,7 @@ function calcZeroCashDate(startCash, monthlyCFs) {
     cash += monthlyCFs[i];
     if (cash <= 0) {
       const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-      return { months: i + 1, date: d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }) };
+      return { months: i + 1, date: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) };
     }
   }
   return null;
@@ -1277,7 +1307,7 @@ function calcZeroCashDate(startCash, monthlyCFs) {
 
 function updateRunwayChart(sc) {
   // Monthly net cash flow: Mar (actual scenario) + Apr–Dec (Forecast sheet)
-  const labels = ['מרץ 2026', ...FORECAST.labels.map(m => m + '\'26')];
+  const labels = ['Mar 2026', ...FORECAST.labels.map(m => m + '\'26')];
 
   // Scenario delta applied uniformly to all future months
   const delta = sc.netCashFlow - baseAvg.netCashFlow;
@@ -1303,7 +1333,7 @@ function updateRunwayChart(sc) {
       el.textContent = zeroDate.date;
       el.className = 'kpi-value kpi-down';
     } else {
-      el.textContent = '∞ לא נגמר';
+      el.textContent = '∞ No cash out';
       el.className = 'kpi-value kpi-up';
     }
   }
@@ -1353,13 +1383,13 @@ function updateWaterfall(sc) {
 
 function updateCompareTable(sc) {
   const rows = [
-    ['הכנסות (Income)', baseAvg.income, sc.income, true],
-    ['שיווק (Marketing)', -baseAvg.marketing, -sc.marketing, false],
-    ['מלאי (Inventory/COGS)', -baseAvg.inventory, -sc.inventory, false],
+    ['Income', baseAvg.income, sc.income, true],
+    ['Marketing', -baseAvg.marketing, -sc.marketing, false],
+    ['Inventory (COGS)', -baseAvg.inventory, -sc.inventory, false],
     ['MP2 Rework', -baseAvg.mp2Rework, -sc.mp2Rework, false],
-    ['עלויות ישירות (Direct Cost)', -baseAvg.directCost, -sc.directCost, false],
-    ['כ"א (HC)', -baseAvg.hc, -sc.hc, false],
-    ['הוצאות תפעול (OpEx)', -baseAvg.opex, -sc.opex, false],
+    ['Direct Cost', -baseAvg.directCost, -sc.directCost, false],
+    ['HC (Payroll + Outsource)', -baseAvg.hc, -sc.hc, false],
+    ['OpEx', -baseAvg.opex, -sc.opex, false],
     ['__total__', baseAvg.netCashFlow, sc.netCashFlow, false],
   ];
 
@@ -1370,7 +1400,7 @@ function updateCompareTable(sc) {
     const isTotal = label === '__total__';
 
     return `<tr class="${isTotal ? 'total-row' : ''}">
-      <td class="cat">${isTotal ? 'תזרים נטו (Net CF)' : label}</td>
+      <td class="cat">${isTotal ? 'Net Cash Flow' : label}</td>
       <td class="num">${formatUSD(base)}</td>
       <td class="num" style="color: ${scenario >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight: 600">${formatUSD(scenario)}</td>
       <td class="num"><span class="diff-badge ${diff >= 0 ? 'diff-pos' : 'diff-neg'}">${diff >= 0 ? '+' : ''}${formatUSD(diff)}</span></td>
@@ -1381,15 +1411,15 @@ function updateCompareTable(sc) {
 
 function updateMonthlyTable() {
   const categories = [
-    { label: 'הכנסות', data: BASE.income, positive: true },
-    { label: 'שיווק', data: BASE.marketing.map(v => -v) },
-    { label: 'מלאי (Inventory)', data: BASE.inventory.map(v => -v) },
+    { label: 'Income', data: BASE.income, positive: true },
+    { label: 'Marketing', data: BASE.marketing.map(v => -v) },
+    { label: 'Inventory (COGS)', data: BASE.inventory.map(v => -v) },
     { label: 'MP2 Rework', data: BASE.mp2Rework.map(v => -v) },
-    { label: 'עלויות ישירות', data: BASE.directCost.map(v => -v) },
-    { label: 'כ"א (HC)', data: BASE.hc.map(v => -v) },
-    { label: 'הוצאות תפעול (OpEx)', data: BASE.opex.map(v => -v) },
-    { label: 'תזרים נטו', data: BASE.netCashFlow, total: true },
-    { label: 'יתרת פתיחה', data: BASE.openBalance, positive: true },
+    { label: 'Direct Cost', data: BASE.directCost.map(v => -v) },
+    { label: 'HC (Payroll + Outsource)', data: BASE.hc.map(v => -v) },
+    { label: 'OpEx', data: BASE.opex.map(v => -v) },
+    { label: 'Net Cash Flow', data: BASE.netCashFlow, total: true },
+    { label: 'Opening Balance', data: BASE.openBalance, positive: true },
   ];
 
   const tbody = document.getElementById('monthlyBody');
@@ -1436,48 +1466,48 @@ function showPresetResult(name) {
   const el = document.getElementById('scenarioResult');
 
   const messages = {
-    'hire5ny': `<strong>תרחיש: +5 עובדים ב-NY</strong><br>
-      עלות נוספת חודשית: <span style="color:var(--red)">$${(sv.hireNY * sv.costNY).toLocaleString()}</span><br>
-      Burn Rate חדש: <span style="color:var(--red)">${formatUSD(sc.totalExpenses)}</span> (עלייה של ${formatUSD(sv.hireNY * sv.costNY)})<br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'hire5ny': `<strong>Scenario: +5 NY Hires</strong><br>
+      Additional monthly cost: <span style="color:var(--red)">$${(sv.hireNY * sv.costNY).toLocaleString()}</span><br>
+      New Burn Rate: <span style="color:var(--red)">${formatUSD(sc.totalExpenses)}</span> (increase of ${formatUSD(sv.hireNY * sv.costNY)})<br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'tariff5': `<strong>תרחיש: מכס +5%</strong><br>
-      השפעה על Inventory: +${formatUSD(baseAvg.inventory * 0.05 * 0.4)} לחודש<br>
-      השפעה על Direct Cost: +${formatUSD(baseAvg.directCost * 0.05 * 0.3)} לחודש<br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'tariff5': `<strong>Scenario: Tariffs +5%</strong><br>
+      Impact on Inventory: +${formatUSD(baseAvg.inventory * 0.05 * 0.4)}/month<br>
+      Impact on Direct Cost: +${formatUSD(baseAvg.directCost * 0.05 * 0.3)}/month<br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'sales10': `<strong>תרחיש: מכירות +10%</strong><br>
-      הכנסות חדשות: <span style="color:var(--green)">${formatUSD(sc.income)}</span> (מ-${formatUSD(baseAvg.income)})<br>
-      שיפור ב-Net CF: <span style="color:var(--green)">+${formatUSD(baseAvg.income * 0.1)}</span> לחודש<br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'sales10': `<strong>Scenario: Sales +10%</strong><br>
+      New Revenue: <span style="color:var(--green)">${formatUSD(sc.income)}</span> (from ${formatUSD(baseAvg.income)})<br>
+      Net CF improvement: <span style="color:var(--green)">+${formatUSD(baseAvg.income * 0.1)}</span>/month<br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'sales20': `<strong>תרחיש: מכירות +20%</strong><br>
-      הכנסות חדשות: <span style="color:var(--green)">${formatUSD(sc.income)}</span><br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'sales20': `<strong>Scenario: Sales +20%</strong><br>
+      New Revenue: <span style="color:var(--green)">${formatUSD(sc.income)}</span><br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'cutMarketing30': `<strong>תרחיש: קיצוץ שיווק 30%</strong><br>
-      חיסכון חודשי: <span style="color:var(--green)">${formatUSD(baseAvg.marketing * 0.3)}</span><br>
-      שיווק חדש: ${formatUSD(sc.marketing)} (מ-${formatUSD(baseAvg.marketing)})<br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'cutMarketing30': `<strong>Scenario: Cut Marketing 30%</strong><br>
+      Monthly savings: <span style="color:var(--green)">${formatUSD(baseAvg.marketing * 0.3)}</span><br>
+      New Marketing spend: ${formatUSD(sc.marketing)} (from ${formatUSD(baseAvg.marketing)})<br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : 'var(--yellow)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'raise2m': `<strong>תרחיש: גיוס $2M</strong><br>
-      יתרת מזומנים חדשה: <span style="color:var(--green)">${formatUSD(sc.currentCash)}</span><br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : sc.runway < 6 ? 'var(--yellow)' : 'var(--green)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'raise2m': `<strong>Scenario: Raise $2M</strong><br>
+      New cash balance: <span style="color:var(--green)">${formatUSD(sc.currentCash)}</span><br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : sc.runway < 6 ? 'var(--yellow)' : 'var(--green)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'raise5m': `<strong>תרחיש: גיוס $5M</strong><br>
-      יתרת מזומנים חדשה: <span style="color:var(--green)">${formatUSD(sc.currentCash)}</span><br>
-      Runway חדש: <span style="color:${sc.runway < 3 ? 'var(--red)' : sc.runway < 6 ? 'var(--yellow)' : 'var(--green)'}">${sc.runway.toFixed(1)} חודשים</span>`,
+    'raise5m': `<strong>Scenario: Raise $5M</strong><br>
+      New cash balance: <span style="color:var(--green)">${formatUSD(sc.currentCash)}</span><br>
+      New Runway: <span style="color:${sc.runway < 3 ? 'var(--red)' : sc.runway < 6 ? 'var(--yellow)' : 'var(--green)'}">${sc.runway.toFixed(1)} months</span>`,
 
-    'worstCase': `<strong>תרחיש: Worst Case</strong><br>
-      מכירות -20%, מכס +15%, +3 עובדים NY, שיווק +20%<br>
+    'worstCase': `<strong>Scenario: Worst Case</strong><br>
+      Sales -20%, Tariffs +15%, +3 NY hires, Marketing +20%<br>
       Burn Rate: <span style="color:var(--red)">${formatUSD(sc.totalExpenses)}</span><br>
-      Runway: <span style="color:var(--red)">${sc.runway.toFixed(1)} חודשים</span><br>
-      <strong style="color:var(--red)">⚠ מצב קריטי — נדרש גיוס מיידי</strong>`,
+      Runway: <span style="color:var(--red)">${sc.runway.toFixed(1)} months</span><br>
+      <strong style="color:var(--red)">⚠ Critical — immediate fundraising required</strong>`,
 
-    'bestCase': `<strong>תרחיש: Best Case</strong><br>
-      מכירות +30%, שיווק -20%, OpEx -15%, גיוס $5M<br>
+    'bestCase': `<strong>Scenario: Best Case</strong><br>
+      Sales +30%, Marketing -20%, OpEx -15%, Raise $5M<br>
       Net Cash Flow: <span style="color:${sc.netCashFlow >= 0 ? 'var(--green)' : 'var(--red)'}">${formatUSD(sc.netCashFlow)}</span><br>
-      Runway: <span style="color:var(--green)">${sc.runway >= 999 ? '∞ (רווחי!)' : sc.runway.toFixed(1) + ' חודשים'}</span>`,
+      Runway: <span style="color:var(--green)">${sc.runway >= 999 ? '∞ (Profitable!)' : sc.runway.toFixed(1) + ' months'}</span>`,
   };
 
   el.innerHTML = messages[name] || '';
@@ -1527,7 +1557,7 @@ function updateOpexBreakdown(sc) {
       </div>
     </div>`;
   }).join('') + `<div class="waterfall-item" style="border-top:2px solid var(--border);padding-top:10px;margin-top:6px;">
-    <div class="w-label" style="font-weight:700;font-size:12px;">סה״כ OpEx</div>
+    <div class="w-label" style="font-weight:700;font-size:12px;">Total OpEx</div>
     <div class="w-bar-container"></div>
     <div class="w-val" style="font-weight:700;font-size:12px;color:var(--red);">-${formatUSD(sc.opex)}</div>
   </div>`;
@@ -1562,8 +1592,8 @@ function updateIncomeBreakdown(sc) {
         <div style="width:${appPct}%;height:100%;background:var(--accent);border-radius:5px;"></div>
       </div>
       <div style="font-size:12px;color:var(--text-muted);">
-        ~<strong style="color:var(--text)">${appUsers.toLocaleString()}</strong> משתמשים פעילים
-        <span style="opacity:0.6;">($${APP_PRICE}/חודש)</span>
+        ~<strong style="color:var(--text)">${appUsers.toLocaleString()}</strong> active users
+        <span style="opacity:0.6;">($${APP_PRICE}/month)</span>
       </div>
     </div>
     <div style="margin-bottom:14px;">
@@ -1575,12 +1605,12 @@ function updateIncomeBreakdown(sc) {
         <div style="width:${machinesPct}%;height:100%;background:var(--blue);border-radius:5px;"></div>
       </div>
       <div style="font-size:12px;color:var(--text-muted);">
-        ~<strong style="color:var(--text)">${machineSold.toLocaleString()}</strong> מכשירים נמכרו
-        <span style="opacity:0.6;">($${MACHINE_PRICE.toLocaleString()} למכשיר)</span>
+        ~<strong style="color:var(--text)">${machineSold.toLocaleString()}</strong> units sold
+        <span style="opacity:0.6;">($${MACHINE_PRICE.toLocaleString()}/unit)</span>
       </div>
     </div>
     <div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
-      * פירוט ערוצי הכנסה זמין למרץ 2026 בלבד | ינואר–פברואר: אגרגטיבי בלבד
+      * Channel breakdown available for Mar 2026 only | Jan–Feb: aggregate only
     </div>`;
 
   // Init income forecast chart once
@@ -1590,9 +1620,9 @@ function updateIncomeBreakdown(sc) {
     incomeForecastChart = new Chart(ctx.getContext('2d'), {
       type: 'line',
       data: {
-        labels: ['מרץ', ...FORECAST.labels],
+        labels: ['Mar', ...FORECAST.labels],
         datasets: [{
-          label: 'הכנסות תחזית',
+          label: 'Forecast Revenue',
           data: [BASE.income[2], ...FORECAST.income],
           borderColor: '#22c55e',
           backgroundColor: 'rgba(34,197,94,0.1)',
@@ -1631,9 +1661,9 @@ function shareScenario() {
   const url = window.location.href.split('?')[0] + '?' + params.toString();
   navigator.clipboard.writeText(url).then(() => {
     const btn = document.getElementById('shareBtn');
-    if (btn) { btn.textContent = '✓ הועתק!'; setTimeout(() => { btn.textContent = '↗ שתף תרחיש'; }, 2000); }
+    if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = '↗ Share Scenario'; }, 2000); }
   }).catch(() => {
-    prompt('העתק את הקישור:', url);
+    prompt('Copy this link:', url);
   });
 }
 
@@ -1779,7 +1809,7 @@ function parseSheetData(csvText) {
 
 async function loadLiveData() {
   const indicator = document.getElementById('liveIndicator');
-  if (indicator) { indicator.textContent = '⟳ טוען...'; indicator.style.color = 'var(--yellow)'; }
+  if (indicator) { indicator.textContent = '⟳ Loading...'; indicator.style.color = 'var(--yellow)'; }
 
   try {
     const texts = await Promise.all(
@@ -1808,11 +1838,11 @@ async function loadLiveData() {
 
     recalcBaseAvg();
 
-    const now = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (indicator) {
       indicator.textContent = '● Live';
       indicator.style.color = 'var(--green)';
-      indicator.title = 'עודכן בשעה ' + now + ' מ-Google Sheets';
+      indicator.title = 'Updated at ' + now + ' from Google Sheets';
     }
     document.getElementById('fxDisplay').textContent = BASE.fx[2].toFixed(2);
 
@@ -1821,7 +1851,7 @@ async function loadLiveData() {
     if (indicator) {
       indicator.textContent = '○ Static';
       indicator.style.color = 'var(--text-muted)';
-      indicator.title = 'לא ניתן לטעון מ-Google Sheets: ' + err.message;
+      indicator.title = 'Could not load from Google Sheets: ' + err.message;
     }
   }
 
@@ -1829,8 +1859,39 @@ async function loadLiveData() {
   updateMonthlyTable();
 }
 
+// ==================== THEME TOGGLE ====================
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀';
+  localStorage.setItem('ampfit-theme', isLight ? 'light' : 'dark');
+
+  // Update Chart.js global color for new charts; existing charts need manual refresh
+  const textColor = isLight ? '#334155' : '#94a3b8';
+  const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  Chart.defaults.color = textColor;
+  Chart.defaults.borderColor = gridColor;
+
+  // Force all existing charts to re-render with updated theme colors
+  [burnChart, runwayChart, trendChart, ordersChart, cohortChart, appRevenueChart, incomeForecastChart].forEach(ch => {
+    if (!ch) return;
+    ch.options.scales && Object.values(ch.options.scales).forEach(ax => {
+      if (ax.ticks) ax.ticks.color = textColor;
+      if (ax.grid)  ax.grid.color  = gridColor;
+    });
+    if (ch.options.plugins?.legend?.labels) ch.options.plugins.legend.labels.color = textColor;
+    ch.update('none');
+  });
+}
+
 // ==================== INIT ====================
 window.addEventListener('DOMContentLoaded', () => {
+  // Restore theme preference
+  if (localStorage.getItem('ampfit-theme') === 'light') {
+    document.body.classList.add('light');
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) btn.textContent = '🌙';
+  }
   initCharts();
   applyURLParams();   // apply shared scenario from URL if present
   updateScenario();
