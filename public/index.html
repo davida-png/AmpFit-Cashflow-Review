@@ -462,6 +462,32 @@
   }
 
   .scenario-result.visible { display: block; }
+
+  /* Cohort Analytics */
+  .cohort-econ-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .cohort-econ-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .cohort-econ-card.econ-highlight {
+    border-color: var(--accent);
+    background: rgba(99,102,241,0.06);
+  }
+  .econ-label { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .econ-value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .econ-sub { font-size: 11px; color: var(--text-muted); }
+  .econ-green { color: var(--green); }
+  .econ-blue { color: var(--blue); }
+  .cohort-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 768px) { .cohort-charts-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -638,6 +664,60 @@
     </div>
   </div>
 
+  <!-- Cohort Analytics -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-title">Cohort Analytics — מנויי App</div>
+    <div class="card-subtitle">כל רוכש מכונה מחויב לאפליקציה | $23/חודש × 12 חודשים | נתוני BI: ספטמבר 2025 – מרץ 2026</div>
+
+    <div class="cohort-econ-grid">
+      <div class="cohort-econ-card">
+        <div class="econ-label">CAC (מרץ 2026)</div>
+        <div class="econ-value">$798</div>
+        <div class="econ-sub">Marketing $580K ÷ 727 units</div>
+      </div>
+      <div class="cohort-econ-card">
+        <div class="econ-label">Machine LTV</div>
+        <div class="econ-value">$2,271</div>
+        <div class="econ-sub">$1,995 + 12×$23 App</div>
+      </div>
+      <div class="cohort-econ-card econ-highlight">
+        <div class="econ-label">LTV : CAC</div>
+        <div class="econ-value econ-green">2.85x</div>
+        <div class="econ-sub">Payback Day 1 — $1,995 > $798</div>
+      </div>
+      <div class="cohort-econ-card">
+        <div class="econ-label">מנויים פעילים (מרץ)</div>
+        <div class="econ-value" id="cohortActiveNow">3,995</div>
+        <div class="econ-sub">7 Cohorts Sep'25–Mar'26</div>
+      </div>
+      <div class="cohort-econ-card">
+        <div class="econ-label">App Revenue (מרץ)</div>
+        <div class="econ-value">$91,885</div>
+        <div class="econ-sub">3,995 × $23/month</div>
+      </div>
+      <div class="cohort-econ-card">
+        <div class="econ-label">Peak Subscribers</div>
+        <div class="econ-value econ-blue" id="cohortPeakVal">—</div>
+        <div class="econ-sub" id="cohortPeakMonth">טוען...</div>
+      </div>
+    </div>
+
+    <div class="cohort-charts-row">
+      <div>
+        <div class="card-title" style="font-size:13px; margin-bottom:10px;">מכירות מכונות לפי ספק תשלום — BI Data</div>
+        <div class="chart-container" style="height:220px;"><canvas id="chartOrders"></canvas></div>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:13px; margin-bottom:10px;">מנויי App פעילים — Cohort View (Sep'25–Dec'26)</div>
+        <div class="chart-container" style="height:220px;"><canvas id="chartCohort"></canvas></div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="font-size:13px; margin-bottom:10px;">הכנסות App חודשיות — Cohort Projection ($23 × Active Users)</div>
+      <div class="chart-container" style="height:170px;"><canvas id="chartAppRevenue"></canvas></div>
+    </div>
+  </div>
+
   <!-- Comparison Table -->
   <div class="card" style="margin-bottom: 24px;">
     <div class="card-title">השוואת תרחישים — Base Case vs. Scenario</div>
@@ -744,6 +824,54 @@ const INCOME_BREAKDOWN = {
   feb: { app: null,   machines: null },    // not available in sheet
   mar: { app: 90000,  machines: 790000 },  // from March sheet
 };
+
+// ==================== MACHINE ORDERS — BI DATA ====================
+// Source: BI system, Sep 2025 – Mar 2026 | Machine price: $1,995
+const MACHINE_ORDERS = {
+  months:  ["Sep'25","Oct'25","Nov'25","Dec'25","Jan'26","Feb'26","Mar'26"],
+  totals:  [620, 459, 768, 486, 470, 465, 727],
+  stripe:  [102, 98,  320, 228, 208, 183, 285],
+  affirm:  [220, 161, 257, 144, 149, 161, 214],
+  truemed: [0,   0,   57,  62,  74,  54,  66],
+  other:   [298, 200, 134, 52,  39,  67,  162],
+};
+
+// Build cohort active-subscriber data through Dec 2026
+// Each buyer subscribes for 12 months at $23/month
+function buildCohortData() {
+  const APP_MONTHLY = 23;
+  const MACHINE_PRICE = 1995;
+  // Estimated machine % of income (from Mar 2026 actuals: $790K / $880K)
+  const MACHINE_RATIO = 790000 / 880000;
+
+  // Historical + forecast orders (Apr–Dec 2026 estimated from FORECAST income)
+  const historicalOrders = MACHINE_ORDERS.totals; // 7 months Sep'25–Mar'26
+  const forecastOrders = FORECAST.income.map(inc => Math.round(inc * MACHINE_RATIO / MACHINE_PRICE));
+
+  const allOrders = [...historicalOrders, ...forecastOrders]; // 16 months
+  const allMonths = [
+    "Sep'25","Oct'25","Nov'25","Dec'25","Jan'26","Feb'26","Mar'26",
+    "Apr'26","May'26","Jun'26","Jul'26","Aug'26","Sep'26","Oct'26","Nov'26","Dec'26"
+  ];
+  const forecastStartIdx = historicalOrders.length; // index where forecast begins (7)
+
+  // Active subscribers per month = sum of all cohorts still within 12-month window
+  const activeUsers = allMonths.map((_, monthIdx) => {
+    let total = 0;
+    for (let cohortIdx = 0; cohortIdx <= monthIdx && cohortIdx < allOrders.length; cohortIdx++) {
+      if ((monthIdx - cohortIdx) < 12) total += allOrders[cohortIdx];
+    }
+    return total;
+  });
+
+  const appRevenue = activeUsers.map(u => u * APP_MONTHLY);
+
+  // Find peak
+  const peakUsers = Math.max(...activeUsers);
+  const peakIdx = activeUsers.indexOf(peakUsers);
+
+  return { allMonths, allOrders, historicalOrders, forecastOrders, forecastStartIdx, activeUsers, appRevenue, peakUsers, peakIdx };
+}
 
 const avg = (arr) => arr.reduce((a,b) => a+b, 0) / arr.length;
 const sum = (arr) => arr.reduce((a,b) => a+b, 0);
@@ -988,6 +1116,135 @@ function initCharts() {
       },
       scales: {
         y: { ticks: { callback: v => '$' + (v/1000000).toFixed(1) + 'M' } }
+      }
+    }
+  });
+
+  initCohortCharts();
+}
+
+// ==================== COHORT CHARTS ====================
+let ordersChart, cohortChart, appRevenueChart;
+
+function initCohortCharts() {
+  const cd = buildCohortData();
+
+  // Update peak KPI card
+  document.getElementById('cohortPeakVal').textContent = cd.peakUsers.toLocaleString();
+  document.getElementById('cohortPeakMonth').textContent = cd.allMonths[cd.peakIdx];
+
+  // Color per month: historical = solid, forecast = lighter
+  const ordersColors = MACHINE_ORDERS.months.map(() => 'rgba(99,102,241,0.8)');
+
+  // --- Chart 1: Machine Orders by Payment Provider (bar stacked) ---
+  const ctxOrders = document.getElementById('chartOrders').getContext('2d');
+  ordersChart = new Chart(ctxOrders, {
+    type: 'bar',
+    data: {
+      labels: MACHINE_ORDERS.months,
+      datasets: [
+        { label: 'Stripe',  data: MACHINE_ORDERS.stripe,  backgroundColor: 'rgba(99,102,241,0.85)',  borderRadius: 3 },
+        { label: 'Affirm',  data: MACHINE_ORDERS.affirm,  backgroundColor: 'rgba(59,130,246,0.85)',  borderRadius: 3 },
+        { label: 'TrueMed', data: MACHINE_ORDERS.truemed, backgroundColor: 'rgba(34,197,94,0.85)',   borderRadius: 3 },
+        { label: 'Other',   data: MACHINE_ORDERS.other,   backgroundColor: 'rgba(148,163,184,0.6)',  borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            footer: items => 'סה"כ: ' + items.reduce((s, i) => s + i.parsed.y, 0) + ' units'
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, ticks: { callback: v => v + ' units' } }
+      }
+    }
+  });
+
+  // --- Chart 2: Active Subscribers Cohort View ---
+  // Split into historical (solid) and forecast (dashed/lighter)
+  const histActiveUsers = cd.activeUsers.slice(0, cd.forecastStartIdx);
+  const forecastActiveUsers = cd.activeUsers.slice(cd.forecastStartIdx - 1); // overlap at Mar'26
+  const histLabels = cd.allMonths.slice(0, cd.forecastStartIdx);
+  const forecastLabels = cd.allMonths.slice(cd.forecastStartIdx - 1);
+
+  const ctxCohort = document.getElementById('chartCohort').getContext('2d');
+  cohortChart = new Chart(ctxCohort, {
+    type: 'line',
+    data: {
+      labels: cd.allMonths,
+      datasets: [
+        {
+          label: 'Active Subscribers (Actual)',
+          data: [...cd.activeUsers.slice(0, cd.forecastStartIdx), ...new Array(cd.allMonths.length - cd.forecastStartIdx).fill(null)],
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.15)',
+          borderWidth: 2.5,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: '#6366f1',
+          tension: 0.3,
+        },
+        {
+          label: 'Active Subscribers (Forecast)',
+          data: [...new Array(cd.forecastStartIdx - 1).fill(null), ...cd.activeUsers.slice(cd.forecastStartIdx - 1)],
+          borderColor: '#818cf8',
+          backgroundColor: 'rgba(99,102,241,0.07)',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: '#818cf8',
+          tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => (ctx.raw !== null ? ctx.dataset.label + ': ' + ctx.raw.toLocaleString() + ' users' : '') } }
+      },
+      scales: {
+        y: { ticks: { callback: v => v.toLocaleString() } }
+      }
+    }
+  });
+
+  // --- Chart 3: App Revenue Projection ---
+  const ctxAppRev = document.getElementById('chartAppRevenue').getContext('2d');
+  appRevenueChart = new Chart(ctxAppRev, {
+    type: 'bar',
+    data: {
+      labels: cd.allMonths,
+      datasets: [
+        {
+          label: 'App Revenue (Actual Cohorts)',
+          data: [...cd.appRevenue.slice(0, cd.forecastStartIdx), ...new Array(cd.allMonths.length - cd.forecastStartIdx).fill(null)],
+          backgroundColor: 'rgba(34,197,94,0.75)',
+          borderRadius: 4,
+        },
+        {
+          label: 'App Revenue (Forecast)',
+          data: [...new Array(cd.forecastStartIdx - 1).fill(null), ...cd.appRevenue.slice(cd.forecastStartIdx - 1)],
+          backgroundColor: 'rgba(34,197,94,0.35)',
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => (ctx.raw !== null ? ctx.dataset.label + ': $' + ctx.raw.toLocaleString() : '') } }
+      },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' } }
       }
     }
   });
