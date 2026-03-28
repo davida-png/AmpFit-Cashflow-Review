@@ -479,6 +479,7 @@
     <span class="exchange-badge">Data: Jan–Mar 2026</span>
     <span class="exchange-badge" id="liveIndicator" title="סטטוס חיבור ל-Google Sheets" style="cursor:default">⟳ טוען...</span>
     <button class="exchange-badge" onclick="loadLiveData()" style="cursor:pointer;border:none;background:var(--card);color:var(--text-muted);font-size:12px;" title="רענן נתונים מ-Google Sheets">↻ רענן</button>
+    <button id="shareBtn" class="exchange-badge" onclick="shareScenario()" style="cursor:pointer;border:1px solid var(--accent);background:transparent;color:var(--accent-light);font-size:12px;font-weight:600;">↗ שתף תרחיש</button>
   </div>
 </div>
 
@@ -494,7 +495,7 @@
     <div class="kpi-card">
       <div class="kpi-label">Monthly Burn Rate</div>
       <div class="kpi-value kpi-down" id="kpiBurn">$5,529,273</div>
-      <div class="kpi-sub" id="kpiBurnSub">ממוצע שריפת מזומנים חודשית</div>
+      <div class="kpi-sub" id="kpiBurnSub">שריפת מזומנים חודשית (מרץ 2026)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Runway</div>
@@ -502,14 +503,19 @@
       <div class="kpi-sub" id="kpiRunwaySub">לפי Burn Rate נוכחי</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Net Cash Flow (Avg)</div>
+      <div class="kpi-label">Net Cash Flow</div>
       <div class="kpi-value kpi-down" id="kpiNet">-$5,529,273</div>
-      <div class="kpi-sub" id="kpiNetSub">ממוצע תזרים נטו חודשי</div>
+      <div class="kpi-sub" id="kpiNetSub">תזרים נטו (מרץ 2026)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Funding Required</div>
       <div class="kpi-value" style="color: var(--purple)" id="kpiFunding">$5,172,500</div>
-      <div class="kpi-sub">ממוצע מימון חודשי נדרש</div>
+      <div class="kpi-sub">מימון חודשי נדרש (מרץ 2026)</div>
+    </div>
+    <div class="kpi-card" style="border-color: var(--red);">
+      <div class="kpi-label">Zero Cash Date</div>
+      <div class="kpi-value kpi-down" id="kpiZeroCash">—</div>
+      <div class="kpi-sub">מועד גמר המזומנים לפי תחזית</div>
     </div>
   </div>
 
@@ -609,15 +615,33 @@
     </div>
   </div>
 
+  <!-- OpEx + Income Breakdown -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">פירוט OpEx — מרץ 2026</div>
+      <div class="card-subtitle">הוצאות תפעול לפי קטגוריה (תחזית)</div>
+      <div id="opexBreakdownContainer"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">פירוט הכנסות — מרץ 2026</div>
+      <div class="card-subtitle">הכנסות לפי ערוץ (App vs Machines)</div>
+      <div id="incomeBreakdownContainer"></div>
+      <div style="margin-top:20px;">
+        <div class="card-title" style="font-size:13px; margin-bottom:10px;">תחזית הכנסות 9 חודשים קדימה</div>
+        <div class="chart-container" style="height:180px;"><canvas id="chartIncomeForecst"></canvas></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Comparison Table -->
   <div class="card" style="margin-bottom: 24px;">
     <div class="card-title">השוואת תרחישים — Base Case vs. Scenario</div>
-    <div class="card-subtitle">כל הסכומים ב-USD</div>
+    <div class="card-subtitle">כל הסכומים ב-USD | Base = מרץ 2026 תחזית</div>
     <table class="compare-table" id="compareTable">
       <thead>
         <tr>
           <th>קטגוריה</th>
-          <th>Base Case (ממוצע)</th>
+          <th>Base Case (מרץ 2026)</th>
           <th>Scenario</th>
           <th>הפרש</th>
           <th>שינוי %</th>
@@ -701,28 +725,45 @@ const BASE = {
   }
 };
 
-// Calculate averages
+// ==================== FORECAST DATA (from Forecast sheet, gid=1081134114) ====================
+// 9 months starting Apr 2026 → Dec 2026
+const FORECAST = {
+  labels:    ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  income:    [850000,  935000,  1028500, 1131350, 1244485, 1368934, 1505827, 1656410, 1656410],
+  netCF:     [-4994384, -5139384, -5221500, -5618650, -5605515, -5281067, -5844173, -5693590, -5693590],
+};
+
+// Income breakdown (Mar 2026 forecast — only month with channel data)
+const INCOME_BREAKDOWN = {
+  jan: { app: null,   machines: null },    // not available in sheet
+  feb: { app: null,   machines: null },    // not available in sheet
+  mar: { app: 90000,  machines: 790000 },  // from March sheet
+};
+
 const avg = (arr) => arr.reduce((a,b) => a+b, 0) / arr.length;
 const sum = (arr) => arr.reduce((a,b) => a+b, 0);
 
+// Base case = March 2026 forecast (most recent month)
+const CUR = 2; // index of the "current" month in BASE arrays
+
 const baseAvg = {
-  income: avg(BASE.income),
-  marketing: avg(BASE.marketing),
-  inventory: avg(BASE.inventory),
-  mp2Rework: avg(BASE.mp2Rework),
-  directCost: avg(BASE.directCost),
-  hc: avg(BASE.hc),
-  opex: avg(BASE.opex),
+  income:    BASE.income[CUR],
+  marketing: BASE.marketing[CUR],
+  inventory: BASE.inventory[CUR],
+  mp2Rework: BASE.mp2Rework[CUR],
+  directCost: BASE.directCost[CUR],
+  hc:        BASE.hc[CUR],
+  opex:      BASE.opex[CUR],
 };
 
 function recalcBaseAvg() {
-  baseAvg.income    = avg(BASE.income);
-  baseAvg.marketing = avg(BASE.marketing);
-  baseAvg.inventory = avg(BASE.inventory);
-  baseAvg.mp2Rework = avg(BASE.mp2Rework);
-  baseAvg.directCost = avg(BASE.directCost);
-  baseAvg.hc        = avg(BASE.hc);
-  baseAvg.opex      = avg(BASE.opex);
+  baseAvg.income     = BASE.income[CUR];
+  baseAvg.marketing  = BASE.marketing[CUR];
+  baseAvg.inventory  = BASE.inventory[CUR];
+  baseAvg.mp2Rework  = BASE.mp2Rework[CUR];
+  baseAvg.directCost = BASE.directCost[CUR];
+  baseAvg.hc         = BASE.hc[CUR];
+  baseAvg.opex       = BASE.opex[CUR];
   baseAvg.totalExpenses = baseAvg.marketing + baseAvg.inventory + baseAvg.mp2Rework +
                            baseAvg.directCost + baseAvg.hc + baseAvg.opex;
   baseAvg.netCashFlow = baseAvg.income - baseAvg.totalExpenses;
@@ -812,6 +853,8 @@ function updateScenario() {
   updateWaterfall(sc);
   updateCompareTable(sc);
   updateMonthlyTable();
+  updateOpexBreakdown(sc);
+  updateIncomeBreakdown(sc);
 }
 
 // ==================== CHARTS ====================
@@ -951,26 +994,56 @@ function updateBurnChart(sc) {
   burnChart.update('none');
 }
 
-function updateRunwayChart(sc) {
-  const monthNames = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan\'27', 'Feb\'27', 'Mar\'27'];
-  const baseCashFlow = baseAvg.netCashFlow;
-
-  const baseData = [sc.currentCash];
-  const scenarioData = [sc.currentCash];
-  const dangerData = [];
-
-  for (let i = 1; i <= 12; i++) {
-    baseData.push(Math.max(BASE.openBalance[2] + baseCashFlow * i, -5000000));
-    scenarioData.push(Math.max(sc.currentCash + sc.netCashFlow * i, -5000000));
-    dangerData.push(0);
+function calcZeroCashDate(startCash, monthlyCFs) {
+  // Returns { months, date } or null if never goes negative
+  let cash = startCash;
+  const now = new Date(2026, 2, 1); // March 2026
+  for (let i = 0; i < monthlyCFs.length; i++) {
+    cash += monthlyCFs[i];
+    if (cash <= 0) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+      return { months: i + 1, date: d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }) };
+    }
   }
-  dangerData.unshift(0);
+  return null;
+}
 
-  runwayChart.data.labels = monthNames;
+function updateRunwayChart(sc) {
+  const labels = ['Mar 2026', ...FORECAST.labels.map(m => m + ' 2026')];
+
+  // Scenario delta vs base (applied proportionally to forecast months)
+  const delta = sc.netCashFlow - baseAvg.netCashFlow;
+
+  const baseData     = [BASE.openBalance[2]]; // base = no funding change
+  const scenarioData = [sc.currentCash];
+  const dangerData   = labels.map(() => 0);
+
+  for (let i = 0; i < FORECAST.labels.length; i++) {
+    const baseCF     = FORECAST.netCF[i];
+    const scenarioCF = FORECAST.netCF[i] + delta;
+    baseData.push(Math.max(baseData[baseData.length - 1] + baseCF, -8000000));
+    scenarioData.push(Math.max(scenarioData[scenarioData.length - 1] + scenarioCF, -8000000));
+  }
+
+  runwayChart.data.labels = labels;
   runwayChart.data.datasets[0].data = baseData;
   runwayChart.data.datasets[1].data = scenarioData;
   runwayChart.data.datasets[2].data = dangerData;
   runwayChart.update('none');
+
+  // Update zero cash date KPI
+  const forecastCFs = FORECAST.netCF.map(cf => cf + delta);
+  const zeroDate = calcZeroCashDate(sc.currentCash, forecastCFs);
+  const el = document.getElementById('kpiZeroCash');
+  if (el) {
+    if (zeroDate) {
+      el.textContent = zeroDate.date;
+      el.className = 'kpi-value kpi-down';
+    } else {
+      el.textContent = '∞ לא נגמר';
+      el.className = 'kpi-value kpi-up';
+    }
+  }
 }
 
 function updateTrendChart(sc) {
@@ -1164,6 +1237,145 @@ function resetScenario() {
   updateScenario();
 }
 
+// ==================== OPEX BREAKDOWN ====================
+function updateOpexBreakdown(sc) {
+  const container = document.getElementById('opexBreakdownContainer');
+  if (!container) return;
+
+  // Scale each opex sub-item proportionally by the scenario opex multiplier
+  const ratio = sc.opex / baseAvg.opex;
+  const items = Object.entries(BASE.opexBreakdown).map(([label, base]) => ({
+    label, value: Math.abs(base * ratio)
+  })).sort((a, b) => b.value - a.value);
+
+  const maxVal = Math.max(...items.map(i => i.value));
+  const colors = ['#6366f1','#a855f7','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#06b6d4','#84cc16'];
+
+  container.innerHTML = items.map((item, idx) => {
+    const pct = (item.value / maxVal * 100).toFixed(1);
+    const isNeg = item.label === 'VAT Refund';
+    return `<div class="waterfall-item">
+      <div class="w-label" style="font-size:12px;">${item.label}</div>
+      <div class="w-bar-container">
+        <div class="w-bar" style="width:${pct}%; background:${isNeg ? 'var(--green)' : colors[idx % colors.length]}; opacity:0.75; right:0;"></div>
+      </div>
+      <div class="w-val" style="color:${isNeg ? 'var(--green)' : 'var(--text-muted)'}; font-size:12px;">
+        ${isNeg ? '+' : '-'}$${(item.value/1000).toFixed(0)}K
+      </div>
+    </div>`;
+  }).join('') + `<div class="waterfall-item" style="border-top:2px solid var(--border);padding-top:10px;margin-top:6px;">
+    <div class="w-label" style="font-weight:700;font-size:12px;">סה״כ OpEx</div>
+    <div class="w-bar-container"></div>
+    <div class="w-val" style="font-weight:700;font-size:12px;color:var(--red);">-${formatUSD(sc.opex)}</div>
+  </div>`;
+}
+
+// ==================== INCOME BREAKDOWN ====================
+let incomeForecastChart;
+
+function updateIncomeBreakdown(sc) {
+  const container = document.getElementById('incomeBreakdownContainer');
+  if (!container) return;
+
+  const mar = INCOME_BREAKDOWN.mar;
+  const scaledApp      = mar.app      * (1 + (sc.income / baseAvg.income - 1));
+  const scaledMachines = mar.machines * (1 + (sc.income / baseAvg.income - 1));
+
+  const appPct      = (scaledApp / sc.income * 100).toFixed(1);
+  const machinesPct = (scaledMachines / sc.income * 100).toFixed(1);
+
+  container.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+        <span>📱 App Subscriptions</span>
+        <span style="color:var(--green);font-weight:600;">$${(scaledApp/1000).toFixed(0)}K (${appPct}%)</span>
+      </div>
+      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+        <div style="width:${appPct}%;height:100%;background:var(--accent);border-radius:5px;"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+        <span>🏋️ Machine Sales</span>
+        <span style="color:var(--blue);font-weight:600;">$${(scaledMachines/1000).toFixed(0)}K (${machinesPct}%)</span>
+      </div>
+      <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+        <div style="width:${machinesPct}%;height:100%;background:var(--blue);border-radius:5px;"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">* פירוט זמין למרץ 2026 בלבד</div>`;
+
+  // Init income forecast chart once
+  if (!incomeForecastChart) {
+    const ctx = document.getElementById('chartIncomeForecst');
+    if (!ctx) return;
+    incomeForecastChart = new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ['מרץ', ...FORECAST.labels],
+        datasets: [{
+          label: 'הכנסות תחזית',
+          data: [BASE.income[2], ...FORECAST.income],
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34,197,94,0.1)',
+          borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3,
+          pointBackgroundColor: '#22c55e',
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K', font: { size: 10 } } },
+          x: { ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  } else {
+    incomeForecastChart.data.datasets[0].data = [sc.income, ...FORECAST.income.map(v => v * (1 + (sc.income / baseAvg.income - 1)))];
+    incomeForecastChart.update('none');
+  }
+}
+
+// ==================== SHARE ====================
+function shareScenario() {
+  const sv = getScenarioValues();
+  const params = new URLSearchParams({
+    hNY: sv.hireNY, hIL: sv.hireIL,
+    cNY: sv.costNY, cIL: sv.costIL,
+    sales: Math.round(sv.salesPct * 100),
+    tariff: Math.round(sv.tariffPct * 100),
+    mkt: Math.round(sv.marketingPct * 100),
+    opex: Math.round(sv.opexPct * 100),
+    fund: sv.fundingAmount,
+    fx: Math.round(sv.fx * 100),
+  });
+  const url = window.location.href.split('?')[0] + '?' + params.toString();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('shareBtn');
+    if (btn) { btn.textContent = '✓ הועתק!'; setTimeout(() => { btn.textContent = '↗ שתף תרחיש'; }, 2000); }
+  }).catch(() => {
+    prompt('העתק את הקישור:', url);
+  });
+}
+
+function applyURLParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (!p.has('sales')) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('sliderHireNY', p.get('hNY') || 0);
+  set('sliderHireIL', p.get('hIL') || 0);
+  set('sliderCostNY', p.get('cNY') || 12000);
+  set('sliderCostIL', p.get('cIL') || 25000);
+  set('sliderSales',  p.get('sales') || 0);
+  set('sliderTariff', p.get('tariff') || 0);
+  set('sliderMarketing', p.get('mkt') || 0);
+  set('sliderOpex',   p.get('opex') || 0);
+  set('sliderFunding', p.get('fund') || 0);
+  set('sliderFx',     p.get('fx') || 311);
+  updateScenario();
+}
+
 // ==================== HELPERS ====================
 function formatUSD(value) {
   const abs = Math.abs(value);
@@ -1342,9 +1554,10 @@ async function loadLiveData() {
 // ==================== INIT ====================
 window.addEventListener('DOMContentLoaded', () => {
   initCharts();
+  applyURLParams();   // apply shared scenario from URL if present
   updateScenario();
   updateMonthlyTable();
-  loadLiveData(); // fetch live data from Google Sheets in background
+  loadLiveData();     // fetch live data from Google Sheets in background
 });
 </script>
 </body>
